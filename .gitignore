@@ -172,3 +172,16 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Generated at runtime: uploaded datasets and rendered figures.
+media/project1/
+media/project2/
+media/project3/
+media/project4/
+
+# Project 3 downloads AG News here (18 MB+); fetched on first use.
+data/
+
+# Local working notes, not part of the submission.
+CLAUDE.md
+.claude/

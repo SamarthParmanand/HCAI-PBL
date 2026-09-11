@@ -1,0 +1,31 @@
+# HCAI-PBL dependencies.
+#     python -m pip install -r requirements.txt
+#
+# Versions are the ones the projects were developed and tested against.
+
+Django==6.0.7
+
+# Projects 1-4
+pandas==3.0.3
+numpy==2.5.1
+scikit-learn==1.9.0
+matplotlib==3.11.1
+
+# Imported directly rather than only via scikit-learn: scipy for the
+# Plackett-Luce optimiser (Project 4), joblib for the cached Project 3 models.
+scipy==1.18.0
+joblib==1.5.3
+
+# Project 2. The dataset is also bundled as penguins.csv at the project root, so
+# the app still runs if this package is unavailable.
+palmerpenguins==0.1.6
+
+# Project 3 reads the AG News parquet files from Hugging Face.
+pyarrow==25.0.1
+
+# The downloadable PDF reports for Projects 2, 3 and 4.
+reportlab==5.0.1
+
+# Tests only: reads the generated PDFs back to check that no text crosses a
+# page margin. The site itself does not need it.
+pypdf==6.17.0

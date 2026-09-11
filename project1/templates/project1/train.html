@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 1 &middot; Train a model{% endblock %}
+{% block nav_project1 %}active{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+    <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 1 &middot; Training</p>
+    <h1 class="h3 fw-semibold mb-2">{{ filename }}</h1>
+    <div class="d-flex flex-wrap gap-2">
+        <span class="badge text-bg-dark">{{ dataset.problem_type|capfirst }}</span>
+        <span class="badge text-bg-light">Target: {{ dataset.target_name }}</span>
+        <span class="badge text-bg-light">{{ dataset.feature_names|length }} feature(s)</span>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Train a model</h2>
+        <p class="text-body-secondary small mb-0">You choose the model family, how much data
+        is held back for testing, and the seed that decides which rows are held back.
+        Preprocessing, the hyperparameter sweep and the score are handled
+        automatically.</p>
+    </div>
+
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row g-3 align-items-end">
+                <div class="col-sm-6 col-lg-4">
+                    <label class="form-label" for="model">Model</label>
+                    <select class="form-select" name="model" id="model">
+                        {% for key, label in model_choices %}
+                            <option value="{{ key }}" {% if key == model_key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-sm-6 col-lg-4">
+                    <label class="form-label" for="test_size">Test set:
+                        <output id="test-size-value">{{ test_percent }}</output>%</label>
+                    <input type="range" class="form-range" name="test_size" id="test_size"
+                           min="10" max="50" step="5" value="{{ test_percent }}"
+                           oninput="document.getElementById('test-size-value').value = this.value">
+                </div>
+
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="seed">Random seed</label>
+                    <input type="number" class="form-control" name="seed" id="seed"
+                           value="{{ seed }}" min="0" max="9999">
+                </div>
+
+                <div class="col-sm-6 col-lg-2">
+                    <button type="submit" class="btn btn-primary w-100">Train</button>
+                </div>
+            </div>
+        </form>
+
+        {% if error %}
+            <div class="alert alert-danger mt-3 mb-0" role="alert">{{ error }}</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if result %}
+
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Best {{ result.parameter }}</p>
+            <p class="stat-value">{{ result.best.value }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Test {{ result.score_label|lower }}</p>
+            <p class="stat-value">{{ result.best.test_score|floatformat:3 }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Training {{ result.score_label|lower }}</p>
+            <p class="stat-value">{{ result.best.train_score|floatformat:3 }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Train / test rows</p>
+            <p class="stat-value">{{ result.n_train }} / {{ result.n_test }}</p>
+        </div></div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">How the score moves with {{ result.parameter }}</h2>
+        <p class="text-body-secondary small mb-0">{{ result.note }} The gap between the two
+        curves is the overfitting.</p>
+    </div>
+    <div class="card-body">
+        {% if sweep_url %}
+            <div class="figure-frame">
+                <img src="{{ sweep_url }}"
+                     alt="{{ result.score_label }} against {{ result.parameter_label }}, for the training and test sets">
+            </div>
+        {% endif %}
+
+        <div class="table-responsive mt-3">
+            <table class="table table-sm table-hover table-nowrap align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ result.parameter_label }}</th>
+                        <th>Training {{ result.score_label|lower }}</th>
+                        <th>Test {{ result.score_label|lower }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.results %}
+                        <tr {% if row.value == result.best.value %}class="table-active"{% endif %}>
+                            <td class="fw-medium">{{ row.value }}</td>
+                            {% if row.error %}
+                                <td class="text-body-secondary" colspan="2">did not fit: {{ row.error }}</td>
+                                <td></td>
+                            {% else %}
+                                <td class="text-body-secondary">{{ row.train_score|floatformat:3 }}</td>
+                                <td class="text-body-secondary">{{ row.test_score|floatformat:3 }}</td>
+                                <td>{% if row.value == result.best.value %}<span class="badge text-bg-dark">best</span>{% endif %}</td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">The winning model on the test set</h2>
+        <p class="text-body-secondary small mb-0">Only the held-out rows, which the model never
+        saw during fitting.</p>
+    </div>
+    <div class="card-body">
+        {% if result.detail.kind == "classification" %}
+            <div class="row row-cols-2 g-3 mb-3">
+                <div class="col">
+                    <div class="card h-100"><div class="card-body">
+                        <p class="stat-label">Accuracy</p>
+                        <p class="stat-value">{{ result.detail.accuracy|floatformat:3 }}</p>
+                    </div></div>
+                </div>
+                <div class="col">
+                    <div class="card h-100"><div class="card-body">
+                        <p class="stat-label">Macro F1</p>
+                        <p class="stat-value">{{ result.detail.macro_f1|floatformat:3 }}</p>
+                    </div></div>
+                </div>
+            </div>
+            <p class="text-body-secondary small">Rows are the true class, columns the predicted
+            one, so everything off the diagonal is a mistake.</p>
+            {% if confusion_url %}
+                <div class="figure-frame">
+                    <img src="{{ confusion_url }}" alt="Confusion matrix for the best model">
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="row row-cols-2 row-cols-md-3 g-3 mb-3">
+                <div class="col">
+                    <div class="card h-100"><div class="card-body">
+                        <p class="stat-label">R&sup2;</p>
+                        <p class="stat-value">{{ result.detail.r2|floatformat:3 }}</p>
+                    </div></div>
+                </div>
+                <div class="col">
+                    <div class="card h-100"><div class="card-body">
+                        <p class="stat-label">RMSE</p>
+                        <p class="stat-value">{{ result.detail.rmse|floatformat:2 }}</p>
+                    </div></div>
+                </div>
+                <div class="col">
+                    <div class="card h-100"><div class="card-body">
+                        <p class="stat-label">MAE</p>
+                        <p class="stat-value">{{ result.detail.mae|floatformat:2 }}</p>
+                    </div></div>
+                </div>
+            </div>
+            {% if predictions_url %}
+                <div class="figure-frame">
+                    <img src="{{ predictions_url }}"
+                         alt="Predicted against actual values on the test set">
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+{% if result.importance %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h6 mb-1">What the model leaned on</h2>
+            <p class="text-body-secondary small mb-0">{{ result.importance.note }}</p>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-nowrap align-middle mb-0">
+                    <thead><tr><th>Feature</th><th>Share</th>
+                    <th>{{ result.importance.kind|capfirst }}</th></tr></thead>
+                    <tbody>
+                        {% for row in result.importance.rows %}
+                            <tr>
+                                <td class="fw-medium">{{ row.name }}</td>
+                                <td style="width: 45%;">
+                                    <div class="progress" style="height: .5rem;"
+                                         role="progressbar"
+                                         aria-label="{{ row.name }}"
+                                         aria-valuenow="{{ row.share }}"
+                                         aria-valuemin="0" aria-valuemax="1">
+                                        <div class="progress-bar bg-dark"
+                                             style="width: {% widthratio row.share 1 100 %}%"></div>
+                                    </div>
+                                </td>
+                                <td class="text-body-secondary">{{ row.value|floatformat:4 }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">How this run was set up</h2>
+        <p class="text-body-secondary small mb-0">Every choice the app made on your behalf.</p>
+    </div>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item text-body-secondary">{{ result.n_train }} rows were used for
+        training and {{ result.n_test }} held back for testing ({{ test_percent }}%), split with
+        seed {{ result.seed }}
+        {% if result.stratified %}and stratified, so every class keeps its share on both
+        sides{% else %}without stratification, because at least one class was too small to
+        appear on both sides{% endif %}.</li>
+
+        <li class="list-group-item text-body-secondary">{{ result.n_numeric }} numeric feature(s)
+        were imputed with the median{% if result.n_categorical %} and {{ result.n_categorical }}
+        categorical feature(s) were filled with the most frequent value and one-hot
+        encoded{% endif %}. The transformer is fitted inside the pipeline, so it learns only from
+        the training rows and nothing about the test set leaks in.</li>
+
+        <li class="list-group-item text-body-secondary">{{ result.results|length }} values of
+        <strong>{{ result.parameter }}</strong> were fitted and scored; the one with the highest
+        test {{ result.score_label|lower }} is reported above.</li>
+
+        <li class="list-group-item text-body-secondary">The score is
+        <strong>{{ result.score_label }}</strong>, chosen because this is a
+        {{ result.problem_type }} problem.</li>
+    </ul>
+</div>
+
+{% if audit %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h6 mb-1">Read the score with these in mind</h2>
+            <p class="text-body-secondary small mb-0">Findings from the data that change what the
+            number above means.</p>
+        </div>
+        <ul class="list-group list-group-flush">
+            {% for finding in audit %}
+                <li class="list-group-item">
+                    <span class="d-block fw-semibold small">{{ finding.title }}</span>
+                    <span class="text-body-secondary">{{ finding.detail }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+{% endif %}
+
+<div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'project1:explore' %}">Back to the data</a>
+    <a class="btn btn-outline-secondary" href="{% url 'project1:index' %}">Load another dataset</a>
+    <a class="btn btn-outline-secondary" href="{% url 'home:index' %}">Back to hub</a>
+</div>
+
+{% endblock %}

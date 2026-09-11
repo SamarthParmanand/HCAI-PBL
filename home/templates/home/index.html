@@ -1,55 +1,57 @@
 {% extends 'base.html' %}
 
-{%  load static %}
-
-{% block extra_css %}
-        <link rel= "stylesheet" href="{% static 'home/style.css'%}">
-{% endblock %}
+{% block title %}HCAI project hub{% endblock %}
+{% block nav_home %}active{% endblock %}
 
 {% block content %}
 
-<div class="box">
-    <div class="title-container">
-        <div class = "title">HCAI project hub</div>
-    </div>
+<div class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
 
-    <div class="main-text">
-    <div class="summary" >
-        <p class="centered-text">This page serves as the central hub for student 
-        projects developed as part of the <strong>Human-Centric Artificial Intelligence</strong> 
-        course, by the following group:</p>
-    </div>
-    
-    <div class="students">
-        <ul class="student-list">
-            {% for student in students %}
-                <li class="student-item">
-                    <span class="student-name">{{ student.name }}</span> –
-                    <span class="student-id">{{ student.matriculation }}</span>
-                </li>
-            {% empty %}
-                <li>No students found.</li>
-            {% endfor %}
-        </ul>
-    </div>
-    
-    
-    <div class="projects">
-        <h2 style="text-align: center;">Projects</h2>
-        <div class="button-container">
-            {% for project in projects %}
-                <form action="{% url project.url_name %}" method="get" style="margin-bottom: 10px;">
-                    {% csrf_token %}
-                    <button type="submit">{{ project.name }}</button>
-                </form>
-            {% endfor %}
+        <div class="mb-4">
+            <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project hub</p>
+            <h1 class="h3 fw-semibold mb-2">Human-Centric Artificial Intelligence</h1>
+            <p class="text-body-secondary mb-0">Coursework for the TUHH project-based learning
+            module. Each project is an interactive application, operated through the browser.</p>
         </div>
-    </div>
-    
 
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h6 mb-0">Group</h2>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for student in students %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ student.name }}</span>
+                        <span class="badge text-bg-light font-monospace">{{ student.matriculation }}</span>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item text-body-secondary">No students listed.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="h6 mb-0">Projects</h2>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for project in projects %}
+                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                       href="{% url project.url_name %}">
+                        <span>
+                            <span class="fw-medium">{{ project.name }}</span>
+                            {% if project.summary %}
+                                <span class="d-block text-body-secondary small">{{ project.summary }}</span>
+                            {% endif %}
+                        </span>
+                        <span class="text-body-secondary" aria-hidden="true">&rarr;</span>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
 </div>
 
 {% endblock %}
-
-{% block script %}
-{% endblock script %}

@@ -1,45 +1,48 @@
 {% extends 'base.html' %}
 
-{%  load static %}
-
+{% block title %}Display a plot{% endblock %}
 
 {% block content %}
 
-<div class="box">
-    <div class="title-container">
-        <div class = "title">Display a plot</div>
-    </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h1 class="h4 fw-semibold mb-3">Display a plot</h1>
 
-    <div class="main-text">
-        {% if image_url %}
-            <img src="{{ image_url }}" alt="Generated plot" id="generated-plot">
-        {% else %}
-            <p>No image to show.</p>
-        {% endif %}
-        <br><br>
-        <button id="refresh-button">Generate new plot</button>
+        <div class="card">
+            <div class="card-body">
+                {% if image_url %}
+                    <div class="figure-frame">
+                        <img src="{{ image_url }}" alt="Generated plot" id="generated-plot">
+                    </div>
+                {% else %}
+                    <p class="text-body-secondary mb-0">No image to show.</p>
+                {% endif %}
+
+                <button id="refresh-button" class="btn btn-primary mt-3">Generate new plot</button>
+            </div>
+        </div>
+
+        <a class="btn btn-outline-secondary mt-3" href="{% url 'home:index' %}">Back to hub</a>
     </div>
-    
-    <script>
-        document.getElementById("refresh-button").addEventListener("click", function() {
-            fetch("{% url 'demos:generate_plot_ajax' %}", {
-                method: "POST",
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const img = document.getElementById("generated-plot");
-                img.src = data.image_url + '?t=' + new Date().getTime(); // bust cache
-            });
-        });
-    </script>
-    
 </div>
 
 {% endblock %}
 
 {% block script %}
+<script>
+    document.getElementById("refresh-button").addEventListener("click", function () {
+        fetch("{% url 'demos:generate_plot_ajax' %}", {
+            method: "POST",
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const img = document.getElementById("generated-plot");
+            img.src = data.image_url + '?t=' + new Date().getTime();   // bust cache
+        });
+    });
+</script>
 {% endblock script %}

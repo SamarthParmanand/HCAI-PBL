@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 3 &middot; Be the expert{% endblock %}
+{% block nav_project3 %}active{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <div class="mb-4">
+            <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 3 &middot; Task 5</p>
+            <h1 class="h3 fw-semibold mb-2">Be the expert</h1>
+            <p class="text-body-secondary mb-0">These are the articles the system
+            decided it could not answer and handed over. Same query loop as Task 4,
+            with you in place of the simulation.</p>
+        </div>
+
+        {% if not finished %}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h6 mb-0">Article {{ position|add:1 }} of {{ total }}</h2>
+                    <span class="badge text-bg-light">deferred by the system</span>
+                </div>
+                <div class="card-body">
+                    <p class="mb-4">{{ article }}</p>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <p class="form-label">Which topic is this?</p>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for name in class_names %}
+                                <button type="submit" name="answer" value="{{ forloop.counter0 }}"
+                                        class="btn btn-outline-secondary">{{ name }}</button>
+                            {% endfor %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="row row-cols-3 g-3 mb-4">
+                <div class="col"><div class="card h-100"><div class="card-body">
+                    <p class="stat-label">You</p>
+                    <p class="stat-value">{{ scores.you|floatformat:3 }}</p>
+                </div></div></div>
+                <div class="col"><div class="card h-100"><div class="card-body">
+                    <p class="stat-label">{{ expert_name }}</p>
+                    <p class="stat-value">{{ scores.expert|floatformat:3 }}</p>
+                </div></div></div>
+                <div class="col"><div class="card h-100"><div class="card-body">
+                    <p class="stat-label">Classifier</p>
+                    <p class="stat-value">{{ scores.classifier|floatformat:3 }}</p>
+                </div></div></div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h2 class="h6 mb-1">What everyone said</h2>
+                    <p class="text-body-secondary small mb-0">On the same
+                    {{ scores.n }} deferred articles. The classifier's score here is
+                    low by construction: these are the ones it was least able to
+                    answer, which is why they were deferred.</p>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Article</th><th>True</th><th>You</th>
+                            <th>Expert</th><th>Classifier</th></tr></thead>
+                            <tbody>
+                                {% for row in review %}
+                                    <tr {% if not row.you_right %}class="table-active"{% endif %}>
+                                        <td class="text-body-secondary">{{ row.text }}&hellip;</td>
+                                        <td class="fw-medium">{{ row.truth }}</td>
+                                        <td>{{ row.yours }}</td>
+                                        <td class="text-body-secondary">{{ row.expert }}</td>
+                                        <td class="text-body-secondary">{{ row.classifier }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" name="restart" value="1" class="btn btn-primary">
+                    Another round
+                </button>
+            </form>
+        {% endif %}
+
+        <a class="btn btn-outline-secondary mt-3" href="{% url 'project3:index' %}">Back to the results</a>
+
+    </div>
+</div>
+
+{% endblock %}

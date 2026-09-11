@@ -1,21 +1,76 @@
 {% load static %}
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
     <head>
-        <link rel= "stylesheet" href="{% static 'style.css' %}">
-        {% block extra_css %}{% endblock %}
-        <link rel="shortcut icon" href="{% static 'favicon/favicon.ico' %}">
-        <title>HCAI project</title>
-        <style></style>
-    </head>
-    <body>
-        <div class="grid-parent">
-            {% block content %}
-            {%  endblock %}
-        </div>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        {% block script %}
-        {% endblock script %}
+        {% comment %}
+        Bootstrap 5.3.3 is vendored into static/vendor/ rather than pulled from a
+        CDN, so the site renders identically with no network connection.
+        {% endcomment %}
+        <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+        <link rel="stylesheet" href="{% static 'style.css' %}">
+        {% block extra_css %}{% endblock %}
+
+        <link rel="shortcut icon" href="{% static 'favicon/favicon.ico' %}">
+        <title>{% block title %}HCAI project{% endblock %}</title>
+    </head>
+
+    <body class="bg-body-tertiary d-flex flex-column min-vh-100">
+
+        <nav class="navbar navbar-expand-md bg-body border-bottom sticky-top">
+            <div class="container-xl">
+                <a class="navbar-brand fw-semibold" href="{% url 'home:index' %}">HCAI</a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#site-nav" aria-controls="site-nav"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="site-nav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link {% block nav_home %}{% endblock %}"
+                               href="{% url 'home:index' %}">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% block nav_project1 %}{% endblock %}"
+                               href="{% url 'project1:index' %}">Project 1</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% block nav_project2 %}{% endblock %}"
+                               href="{% url 'project2:index' %}">Project 2</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% block nav_project3 %}{% endblock %}"
+                               href="{% url 'project3:index' %}">Project 3</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% block nav_project4 %}{% endblock %}"
+                               href="{% url 'project4:index' %}">Project 4</a>
+                        </li>
+                    </ul>
+                    <span class="navbar-text small">Human-Centric Artificial Intelligence</span>
+                </div>
+            </div>
+        </nav>
+
+        <main class="container-xl py-4 flex-grow-1">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="mt-auto border-top bg-body">
+            <div class="container-xl py-3">
+                <p class="text-body-secondary small text-center mb-0">
+                    TUHH &middot; Human-Centric Artificial Intelligence &middot; project-based learning
+                </p>
+            </div>
+        </footer>
+
+        <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+        {% block script %}{% endblock script %}
     </body>
 </html>

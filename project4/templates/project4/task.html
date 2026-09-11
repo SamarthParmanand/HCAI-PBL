@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 4 &middot; Task {{ done|add:1 }} of {{ total }}{% endblock %}
+{% block nav_project4 %}active{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+
+        <div class="d-flex justify-content-between align-items-end mb-2">
+            <p class="text-uppercase text-body-secondary small fw-semibold mb-0">
+                {% if is_ranking %}Design 2 &middot; rank them
+                {% elif is_validation %}Final questions
+                {% else %}Design 1 &middot; pick one{% endif %}
+            </p>
+            <p class="text-body-secondary small mb-0">{{ done }} of {{ total }} done</p>
+        </div>
+        <div class="progress mb-4" role="progressbar" aria-label="Progress"
+             aria-valuenow="{{ percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar bg-dark" style="width: {{ percent }}%"></div>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-warning" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="block" value="{{ task.block }}">
+            <input type="hidden" name="position" value="{{ task.position }}">
+
+            {% if is_ranking %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h1 class="h6 mb-1">Rank these {{ task.movies|length }} films</h1>
+                        <p class="text-body-secondary small mb-0">1 is the one you
+                        would most want to watch, {{ task.movies|length }} the least.
+                        Use each rank exactly once.</p>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for movie in task.movies %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center gap-3">
+                                <span>
+                                    <span class="fw-medium">{{ movie.title }}</span>
+                                    <span class="text-body-secondary">({{ movie.year }})</span>
+                                    <span class="d-block text-body-secondary small">
+                                        {{ movie.genres }} &middot; {{ movie.duration }} min
+                                        &middot; IMDb {{ movie.score }} &middot; {{ movie.certificate }}
+                                    </span>
+                                </span>
+                                <span class="flex-shrink-0">
+                                    <label class="visually-hidden" for="rank_{{ movie.movie_id }}">
+                                        Rank for {{ movie.title }}
+                                    </label>
+                                    <select class="form-select form-select-sm" style="width: 5.5rem;"
+                                            name="rank_{{ movie.movie_id }}" id="rank_{{ movie.movie_id }}"
+                                            required>
+                                        <option value="">rank</option>
+                                        {% for rank in ranks %}
+                                            <option value="{{ rank }}">{{ rank }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="card-footer bg-body">
+                        <button type="submit" class="btn btn-primary">Submit ranking</button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h1 class="h6 mb-1">Which would you rather watch?</h1>
+                        <p class="text-body-secondary small mb-0">Pick one.</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            {% for movie in task.movies %}
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h2 class="h6 mb-1">{{ movie.title }}</h2>
+                                            <p class="text-body-secondary small mb-2">
+                                                {{ movie.year }} &middot; {{ movie.genres }}<br>
+                                                Directed by {{ movie.director }}<br>
+                                                {{ movie.duration }} min &middot; IMDb {{ movie.score }}
+                                                &middot; {{ movie.certificate }}
+                                            </p>
+                                            <button type="submit" name="choice"
+                                                    value="{{ movie.movie_id }}"
+                                                    class="btn btn-primary w-100">
+                                                I would watch this
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </form>
+
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'project4:index' %}">
+            Leave the study
+        </a>
+
+    </div>
+</div>
+
+{% endblock %}

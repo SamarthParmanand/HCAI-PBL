@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 4 &middot; What we learned{% endblock %}
+{% block nav_project4 %}active{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+
+        <div class="mb-4">
+            <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 4 &middot; Debrief</p>
+            <h1 class="h3 fw-semibold mb-2">What each interface learned about you</h1>
+            <p class="text-body-secondary mb-0">Both designs estimated a preference
+            vector from your answers. Each was then scored on the
+            {{ held_out }} held-out questions at the end, which neither was fitted
+            on. Chance is 0.50.</p>
+        </div>
+
+        <div class="row g-3 mb-4">
+            {% for design in designs %}
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h2 class="h6 mb-1">{{ design.label }}</h2>
+                            <p class="text-body-secondary small mb-0">
+                                {{ design.answers }} answer(s) &rarr;
+                                {{ design.choice_events }} independent choice events
+                                {% if design.seconds %}
+                                    &middot; {{ design.seconds|floatformat:0 }}s
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="card-body">
+                            <p class="stat-label">Held-out accuracy</p>
+                            <p class="stat-value mb-3">{{ design.accuracy|floatformat:3 }}</p>
+
+                            <p class="fw-semibold small mb-1">Looks like you like</p>
+                            <ul class="list-unstyled small mb-3">
+                                {% for item in design.likes|slice:":5" %}
+                                    <li class="d-flex justify-content-between">
+                                        <span>{{ item.name }}</span>
+                                        <span class="text-body-secondary">{{ item.weight|floatformat:2 }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+
+                            <p class="fw-semibold small mb-1">And to avoid</p>
+                            <ul class="list-unstyled small mb-3">
+                                {% for item in design.dislikes|slice:":3" %}
+                                    <li class="d-flex justify-content-between">
+                                        <span>{{ item.name }}</span>
+                                        <span class="text-body-secondary">{{ item.weight|floatformat:2 }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+
+                            <p class="fw-semibold small mb-1">It would recommend</p>
+                            <ul class="list-unstyled small mb-0">
+                                {% for movie in design.recommendations %}
+                                    <li>{{ movie.title }}
+                                        <span class="text-body-secondary">({{ movie.year }})</span></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h6 mb-1">{{ combined.label }}</h2>
+                <p class="text-body-secondary small mb-0">Everything you answered,
+                fitted together. This is the ceiling either design could have
+                reached with this feature space, so it says how much of the gap is
+                the interface and how much is the model.</p>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <p class="stat-label">Held-out accuracy</p>
+                        <p class="stat-value">{{ combined.accuracy|floatformat:3 }}</p>
+                        <p class="text-body-secondary small mb-0">
+                            from {{ combined.choice_events }} choice events
+                        </p>
+                    </div>
+                    <div class="col-md-8">
+                        <p class="fw-semibold small mb-1">Recommended for you</p>
+                        <ul class="list-unstyled small mb-0">
+                            {% for movie in combined.recommendations %}
+                                <li>{{ movie.title }}
+                                    <span class="text-body-secondary">({{ movie.year }}) &middot;
+                                    {{ movie.genres }}</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-secondary" role="alert">
+            <strong>One participant is not a result.</strong> These numbers describe
+            your session only. The study compares the two designs across a sample of
+            participants, with the analysis plan set out in the PDF; a single run
+            demonstrates that the pipeline works end to end, not which interface is
+            better.
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-primary" href="{% url 'project4:report' %}">Download the report (PDF)</a>
+            <a class="btn btn-outline-secondary" href="{% url 'project4:data' %}">Export responses (CSV)</a>
+            <a class="btn btn-outline-secondary" href="{% url 'project4:index' %}">Back to the landing page</a>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

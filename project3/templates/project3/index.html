@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 3 &middot; Learning to defer{% endblock %}
+{% block nav_project3 %}active{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+    <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 3</p>
+    <h1 class="h3 fw-semibold mb-2">Active learning for learning-to-defer</h1>
+    <p class="text-body-secondary mb-2">AG News: {{ dataset.n_train }} training and
+    {{ dataset.n_test }} test articles over four topics. A classifier and an
+    imperfect expert, and a learned rule that decides which of them answers.</p>
+    <div class="d-flex flex-wrap gap-2">
+        <span class="badge text-bg-light">Built {{ bundle.built_at }}</span>
+        <span class="badge text-bg-light">{{ bundle.build_seconds|floatformat:0 }}s to run</span>
+        <span class="badge text-bg-light">Expert: {{ expert.name }}</span>
+    </div>
+</div>
+
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+    <div class="col"><div class="card h-100"><div class="card-body">
+        <p class="stat-label">Task 1 baseline</p>
+        <p class="stat-value">{{ baseline.accuracy|floatformat:4 }}</p>
+    </div></div></div>
+    <div class="col"><div class="card h-100"><div class="card-body">
+        <p class="stat-label">Expert alone</p>
+        <p class="stat-value">{{ expert.accuracy|floatformat:4 }}</p>
+    </div></div></div>
+    <div class="col"><div class="card h-100"><div class="card-body">
+        <p class="stat-label">Human-AI team</p>
+        <p class="stat-value">{{ policies.competence_zero_margin.team_accuracy|floatformat:4 }}</p>
+    </div></div></div>
+    <div class="col"><div class="card h-100"><div class="card-body">
+        <p class="stat-label">Oracle ceiling</p>
+        <p class="stat-value">{{ policies.oracle.team_accuracy|floatformat:4 }}</p>
+    </div></div></div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Task 1 &middot; the classifier</h2>
+        <p class="text-body-secondary small mb-0">TF-IDF over unigrams and bigrams,
+        then multinomial logistic regression. Topic in a news snippet is carried
+        almost entirely by vocabulary, so a linear model on n-grams is the right
+        inductive bias rather than a compromise &mdash; and it returns the
+        probabilities every later task needs.</p>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-nowrap align-middle mb-0">
+                <thead><tr><th>Model</th><th>Trained on</th><th>Test accuracy</th>
+                <th>Macro F1</th></tr></thead>
+                <tbody>
+                    <tr class="table-active">
+                        <td class="fw-medium">Baseline (all labels)</td>
+                        <td class="text-body-secondary">{{ dataset.n_train }} rows</td>
+                        <td>{{ baseline.accuracy|floatformat:4 }}</td>
+                        <td class="text-body-secondary">{{ baseline.macro_f1|floatformat:4 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-medium">The deferral system's classifier</td>
+                        <td class="text-body-secondary">{{ split.fit_rows }} rows</td>
+                        <td>{{ system.accuracy|floatformat:4 }}</td>
+                        <td class="text-body-secondary">{{ system.macro_f1|floatformat:4 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-body-secondary small">The system uses the 80% classifier so
+        that the remaining {{ split.meta_rows }} rows can be used to estimate how
+        often each side is right. On its own training rows the classifier is right
+        almost always, so a competence model fitted there would conclude it is never
+        wrong and the system would never defer.</p>
+        <div class="figure-frame">
+            <img src="{{ figures.confusion }}" alt="Confusion matrix for the classifier">
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Task 2 &middot; the simulated expert</h2>
+        <p class="text-body-secondary small mb-0">{{ expert.description }}</p>
+    </div>
+    <div class="card-body">
+        <div class="row row-cols-2 row-cols-md-4 g-3 mb-3">
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Overall</p>
+                <p class="stat-value">{{ expert.accuracy|floatformat:4 }}</p>
+            </div></div></div>
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Inside its beat</p>
+                <p class="stat-value">{{ expert.accuracy_in_region|floatformat:3 }}</p>
+            </div></div></div>
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Outside it</p>
+                <p class="stat-value">{{ expert.accuracy_out_of_region|floatformat:3 }}</p>
+            </div></div></div>
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Share of articles</p>
+                <p class="stat-value">{{ expert.region_share|floatformat:3 }}</p>
+            </div></div></div>
+        </div>
+
+        <p class="text-body-secondary small">The expert is worse than the classifier
+        overall. That is deliberate: an expert who was uniformly better would make
+        the deferral question trivial. Being better only <em>somewhere</em> is what
+        forces the system to learn where.</p>
+
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-nowrap align-middle mb-0">
+                <thead><tr><th>Topic</th><th>Test articles</th>
+                <th>Classifier</th><th>Expert</th></tr></thead>
+                <tbody>
+                    {% for row in per_class %}
+                        <tr>
+                            <td class="fw-medium">{{ row.name }}</td>
+                            <td class="text-body-secondary">{{ row.n }}</td>
+                            <td class="text-body-secondary">{{ row.classifier|floatformat:4 }}</td>
+                            <td class="text-body-secondary">{{ row.expert|floatformat:4 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="figure-frame">
+            <img src="{{ figures.expert_profile }}" alt="Classifier against expert by topic">
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Task 3 &middot; learning to defer</h2>
+        <p class="text-body-secondary small mb-0">Defer when the expert is likelier
+        to be right than the classifier:
+        <strong>P(expert correct | x) &gt; P(classifier correct | x)</strong>.</p>
+    </div>
+    <div class="card-body">
+        <h3 class="section-heading">Estimating the two competences</h3>
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-nowrap align-middle mb-0">
+                <thead><tr><th>Signal</th><th>What it estimates</th><th>Test AUC</th></tr></thead>
+                <tbody>
+                    <tr class="table-active">
+                        <td class="fw-medium">Calibrated confidence</td>
+                        <td class="text-body-secondary">P(classifier correct)</td>
+                        <td>{{ quality.calibrated_confidence_auc|floatformat:3 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-medium">Text model of correctness</td>
+                        <td class="text-body-secondary">P(classifier correct)</td>
+                        <td>{{ quality.classifier_text_model_auc|floatformat:3 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-medium">Raw softmax maximum</td>
+                        <td class="text-body-secondary">P(classifier correct), uncalibrated</td>
+                        <td>{{ quality.raw_confidence_auc|floatformat:3 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-medium">Text model of expert correctness</td>
+                        <td class="text-body-secondary">P(expert correct)</td>
+                        <td>{{ quality.expert_competence_auc|floatformat:3 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-body-secondary small">A softmax maximum is not a probability
+        of being right, and the rule compares it against the expert's competence, so
+        it is Platt-scaled onto that scale first. The calibrated confidence is
+        measurably the better of the two estimates, and swapping in the weaker text
+        model costs almost the whole benefit &mdash; the team falls to
+        {{ policies.competence_text_zero_margin.team_accuracy|floatformat:4 }}, barely
+        above the classifier alone.</p>
+
+        <h3 class="section-heading">Results, and whether the deferrals were the right ones</h3>
+        <p class="text-body-secondary small">Team accuracy alone hides whether the
+        deferrals were well chosen: a rule that defers everything just inherits the
+        expert's accuracy. Each rule is also scored against the oracle decision
+        &mdash; defer iff the expert is right here and the classifier wrong &mdash;
+        and by what it bought: articles <em>rescued</em> from a wrong classifier
+        answer against those <em>spoiled</em> by handing over a right one.</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-nowrap align-middle mb-0">
+                <thead><tr><th>Policy</th><th>Team acc.</th><th>Deferred</th>
+                <th>Defer F1</th><th>Rescued</th><th>Spoiled</th><th>Net</th></tr></thead>
+                <tbody>
+                    {% for row in policy_rows %}
+                        <tr {% if "Competence rule (margin 0)" == row.label %}class="table-active"{% endif %}>
+                            <td class="fw-medium">{{ row.label }}</td>
+                            <td>{{ row.team_accuracy|floatformat:4 }}</td>
+                            <td class="text-body-secondary">{{ row.deferral_rate|floatformat:3 }}</td>
+                            <td class="text-body-secondary">{{ row.deferral_f1|floatformat:3 }}</td>
+                            <td class="text-body-secondary">{{ row.rescued }}</td>
+                            <td class="text-body-secondary">{{ row.spoiled }}</td>
+                            <td class="text-body-secondary">{{ row.net_gain }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-body-secondary small mt-2">Of
+        {{ policies.oracle.oracle_opportunities }} articles where deferring would
+        have helped, the competence rule finds
+        {{ policies.competence_zero_margin.rescued }} and spoils
+        {{ policies.competence_zero_margin.spoiled }}.</p>
+
+        <div class="figure-frame mb-3">
+            <img src="{{ figures.accuracy }}" alt="Test accuracy of each party">
+        </div>
+        <div class="figure-frame">
+            <img src="{{ figures.deferral }}" alt="Team accuracy against deferral rate">
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Task 4 &middot; active learning for expert competence</h2>
+        <p class="text-body-secondary small mb-0">No expert labels to begin with.
+        {{ active_settings.batch }} queries per round for
+        {{ active_settings.rounds }} rounds, from a pool of
+        {{ active_settings.pool_size }} unlabelled articles.</p>
+    </div>
+    <div class="card-body">
+        <p class="text-body-secondary small">The system does not need a good model of
+        the expert everywhere &mdash; it needs one binary decision to come out right.
+        So the labels worth buying are those near the boundary where the two
+        competences cross. On its own that fails, and the failure is measurable:
+        querying only near the boundary makes the sample unrepresentative and the
+        fitted model does not transfer. The strategy proposed here splits every
+        batch, half uniform and half on the boundary, which repairs it.</p>
+
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-nowrap align-middle mb-0">
+                <thead><tr><th>Strategy</th><th>Expert model AUC</th>
+                <th>Est. base rate</th><th>Team acc.</th><th>Defer F1</th>
+                <th>Labels to target</th></tr></thead>
+                <tbody>
+                    {% for row in strategies %}
+                        <tr {% if row.key == "hybrid_boundary" %}class="table-active"{% endif %}>
+                            <td class="fw-medium">{{ row.label }}</td>
+                            <td>{{ row.expert_model_auc|floatformat:3 }}</td>
+                            <td class="text-body-secondary">{{ row.expert_base_rate|floatformat:3 }}</td>
+                            <td class="text-body-secondary">{{ row.team_accuracy|floatformat:4 }}</td>
+                            <td class="text-body-secondary">{{ row.deferral_f1|floatformat:3 }}</td>
+                            <td class="text-body-secondary">
+                                {% if row.queries_to_target %}{{ row.queries_to_target }}{% else %}not reached{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="alert alert-secondary" role="alert">
+            <strong>The honest conclusion.</strong> On this problem active learning
+            does not beat uniform sampling on team accuracy. This expert's
+            competence is defined by topic and topic is easy to read off the text,
+            so a few hundred labels drawn anywhere already characterise it; and the
+            deferral decision only changes about
+            {{ policies.competence_zero_margin.deferral_rate|floatformat:2 }} of
+            answers, so team accuracy is insensitive to a better competence model.
+            Where the targeted strategies do differ is in how well their competence
+            model generalises &mdash; and pure boundary sampling is measurably
+            <em>worse</em> than doing nothing clever at all.
+        </div>
+
+        <div class="figure-frame mb-3">
+            <img src="{{ figures.active }}" alt="Team accuracy against expert labels bought">
+        </div>
+        <div class="figure-frame">
+            <img src="{{ figures.active_auc }}" alt="Expert-competence model AUC against labels bought">
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="{% url 'project3:report' %}">Download the report (PDF)</a>
+    <a class="btn btn-outline-secondary" href="{% url 'project3:expert' %}">Be the expert ({{ n_deferred }} deferred articles)</a>
+    <a class="btn btn-outline-secondary" href="{% url 'home:index' %}">Back to hub</a>
+</div>
+
+{% endblock %}

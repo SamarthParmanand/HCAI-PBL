@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 4 &middot; Preference elicitation{% endblock %}
+{% block nav_project4 %}active{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+
+        <div class="mb-4">
+            <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 4</p>
+            <h1 class="h3 fw-semibold mb-2">Preference elicitation</h1>
+            <p class="text-body-secondary mb-0">A user study comparing two ways of
+            learning what somebody wants to watch: many small choices, or one long
+            ranking. {{ dataset.n_usable }} films from the IMDB 5000 dataset,
+            {{ n_features }} features per film.</p>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h2 class="h6 mb-1">The method and the study design</h2>
+                        <p class="text-body-secondary small mb-0">Tasks 1 to 3</p>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-body-secondary">The feature
+                        representation and why those features; the extension of
+                        Bradley-Terry to rankings (Plackett-Luce) and why that one;
+                        and the full protocol for the study &mdash; hypotheses,
+                        counterbalancing, recruitment, measures, analysis plan and
+                        threats to validity.</p>
+                        <a class="btn btn-primary" href="{% url 'project4:report' %}">
+                            Download the PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h2 class="h6 mb-1">The study itself</h2>
+                        <p class="text-body-secondary small mb-0">Task 4 &mdash; what a participant sees</p>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-body-secondary">
+                            {{ pairwise_tasks }} pairwise choices, then
+                            {{ ranking_tasks }} rankings of {{ ranking_size }} films,
+                            then {{ validation_tasks }} held-out questions used only
+                            to score the result. {{ total_tasks }} tasks in all, in a
+                            counterbalanced order.
+                        </p>
+                        <form method="post" action="{% url 'project4:start' %}">
+                            {% csrf_token %}
+                            {% if in_progress %}
+                                <a class="btn btn-primary" href="{% url 'project4:task' %}">Continue</a>
+                                <button type="submit" name="restart" value="1"
+                                        class="btn btn-outline-secondary">Start over</button>
+                            {% else %}
+                                <button type="submit" class="btn btn-primary">Start the study</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h6 mb-1">What the model is</h2>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">A film is a feature vector <em>x</em>; a
+                participant is a preference vector <em>w</em>; the utility of a film
+                to them is <strong>U(x) = w &middot; x</strong>. Eliciting
+                preferences means estimating <em>w</em> from as few interactions as
+                possible.</p>
+                <p class="small mb-2">A pairwise choice is Bradley-Terry:
+                <strong>P(i &gt; j) = &sigma;(w &middot; (x<sub>i</sub> &minus;
+                x<sub>j</sub>))</strong>. A ranking of ten is read as a sequence of
+                choices &mdash; favourite of ten, then of the remaining nine, and so
+                on &mdash; which is the Plackett-Luce model. It reduces exactly to
+                Bradley-Terry when there are two items, so both designs are fitted
+                under one likelihood and the study compares the interfaces rather
+                than two different models.</p>
+                <p class="small text-body-secondary mb-0">Features:
+                {{ dataset.n_genres }} genres (multi-hot),
+                {{ dataset.eras|length }} eras and
+                {{ dataset.certificates|length }} certificate bands (one-hot), plus
+                IMDb score, log vote count and runtime (standardised). Films need at
+                least {{ dataset.min_votes }} votes to appear, so participants have
+                some chance of recognising them.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="h6 mb-1">Collected data</h2>
+                <p class="text-body-secondary small mb-0">Answers are stored in the
+                database, not the browser, so an interrupted run is not lost.</p>
+            </div>
+            <div class="card-body">
+                <p class="small mb-3">{{ total_sessions }} session(s) started,
+                {{ completed_sessions }} completed.</p>
+                <a class="btn btn-outline-secondary btn-sm" href="{% url 'project4:data' %}">
+                    Export all responses (CSV)
+                </a>
+            </div>
+        </div>
+
+        <a class="btn btn-outline-secondary mt-3" href="{% url 'home:index' %}">Back to hub</a>
+
+    </div>
+</div>
+
+{% endblock %}

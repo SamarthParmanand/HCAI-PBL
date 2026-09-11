@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 4 &middot; database not ready{% endblock %}
+{% block nav_project4 %}active{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 4</p>
+        <h1 class="h3 fw-semibold mb-3">Preference elicitation</h1>
+
+        <div class="alert alert-warning" role="alert">
+            The study tables do not exist yet, so answers could not be stored.
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <p>This project keeps every answer in the database, and
+                <code>db.sqlite3</code> is not checked into the repository. Create
+                the tables once from the project root:</p>
+                <pre class="bg-body-tertiary border rounded p-3 mb-3"><code>{{ command }}</code></pre>
+                <p class="text-body-secondary small mb-0">Then reload this page. The
+                reported error was: <code>{{ error }}</code></p>
+            </div>
+        </div>
+
+        <a class="btn btn-outline-secondary mt-3" href="{% url 'home:index' %}">Back to hub</a>
+    </div>
+</div>
+
+{% endblock %}

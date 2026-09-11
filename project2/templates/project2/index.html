@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 2 &middot; Explainability{% endblock %}
+{% block nav_project2 %}active{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+    <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 2</p>
+    <h1 class="h3 fw-semibold mb-2">Explainability</h1>
+    <p class="text-body-secondary mb-0">Palmer Penguins, {{ rows }} penguins, three species.
+    Everything below reads the one model selected here, so changing the model class or
+    &lambda; changes the counterfactuals and the effect plots too.</p>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Task 1 &middot; a decision tree</h2>
+        <p class="text-body-secondary small mb-0">One
+        <code>DecisionTreeClassifier()</code> with nothing constrained, grown until
+        its leaves are pure. This card is fixed: it does not move with the model
+        class or with &lambda; below, which is Task 2's trade-off rather than this
+        one's.</p>
+    </div>
+    <div class="card-body">
+        <div class="row row-cols-2 row-cols-md-4 g-3 mb-3">
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Test accuracy</p>
+                <p class="stat-value">{{ default_tree.accuracy_test|floatformat:3 }}</p>
+            </div></div></div>
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Leaves</p>
+                <p class="stat-value">{{ default_tree.omega }}</p>
+            </div></div></div>
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Depth</p>
+                <p class="stat-value">{{ default_tree.extra.depth }}</p>
+            </div></div></div>
+            <div class="col"><div class="card h-100"><div class="card-body">
+                <p class="stat-label">Train accuracy</p>
+                <p class="stat-value">{{ default_tree.accuracy_train|floatformat:3 }}</p>
+            </div></div></div>
+        </div>
+        <div class="figure-frame figure-fit">
+            <a href="{{ default_tree_url }}" target="_blank" title="Open the full-size image">
+                <img src="{{ default_tree_url }}" alt="The unconstrained decision tree">
+            </a>
+        </div>
+        <p class="text-body-secondary small mt-2 mb-0">Train accuracy is
+        {{ default_tree.accuracy_train|floatformat:3 }} against
+        {{ default_tree.accuracy_test|floatformat:3 }} on the test set: the tree is
+        grown to purity, so it fits its training rows exactly by construction.
+        {{ default_tree.omega }} leaves is already more of the model than a reader
+        will hold in their head at once, which is the whole motivation for Task 2.</p>
+    </div>
+</div>
+
+{% comment %}
+One form for the whole page, submitted by GET. Every region therefore always
+posts the complete state, so no control can silently drop another's value, and
+any view of the app can be bookmarked or shared as a URL.
+{% endcomment %}
+<form method="get" id="controls">
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Model and complexity</h2>
+        <p class="text-body-secondary small mb-0">&lambda; trades test accuracy against
+        complexity. It is <strong>not</strong> the fitting-time regularisation parameter: the
+        whole family is fitted once, and &lambda; only picks which member wins.</p>
+    </div>
+
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-sm-6 col-lg-4">
+                <label class="form-label" for="model">Model class</label>
+                <select class="form-select" name="model" id="model"
+                        onchange="document.getElementById('controls').submit()">
+                    {% for key, label in model_classes %}
+                        <option value="{{ key }}" {% if key == model_class %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-sm-6 col-lg-5">
+                <label class="form-label" for="lam">&lambda; =
+                    <output id="lam-value">{{ lam|floatformat:4 }}</output></label>
+                <input type="range" class="form-range" name="lam" id="lam"
+                       min="{{ lambda_min }}" max="{{ lambda_max }}" step="{{ lambda_step }}"
+                       value="{{ lam }}"
+                       list="lam-ticks"
+                       oninput="document.getElementById('lam-value').value = Number(this.value).toFixed(4)"
+                       onchange="document.getElementById('controls').submit()">
+                {% comment %}
+                Tick marks where the selected model actually changes, so the
+                interesting settings are visible instead of having to be found by
+                dragging.
+                {% endcomment %}
+                <datalist id="lam-ticks">
+                    {% for point in jump_points %}
+                        <option value="{{ point.lam|floatformat:4 }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+
+            <div class="col-sm-6 col-lg-3">
+                <button type="submit" class="btn btn-primary w-100">Apply</button>
+            </div>
+        </div>
+
+        <p class="text-body-secondary small mt-3 mb-0">Maximising
+        <strong>acc<sub>test</sub> &minus; &lambda; &middot; &Omega;(f)</strong>, with
+        &Omega; = {{ omega_label }}.</p>
+    </div>
+</div>
+
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Selected model</p>
+            <p class="stat-value">{{ model_label }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Test accuracy</p>
+            <p class="stat-value">{{ model.accuracy_test|floatformat:3 }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">&Omega; ({{ omega_label }})</p>
+            <p class="stat-value">{{ model.omega }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">{{ setting_label }}</p>
+            <p class="stat-value">{{ model.setting }}</p>
+        </div></div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">
+            {% if model_class == "tree" %}The fitted tree{% else %}The fitted coefficients{% endif %}
+        </h2>
+        <p class="text-body-secondary small mb-0">
+            {% if model_class == "tree" %}
+                {{ model.omega }} leaves, depth {{ model.extra.depth }}, test accuracy
+                {{ model.accuracy_test|floatformat:3 }}.
+            {% else %}
+                {{ model.omega }} non-zero coefficients across
+                {{ model.extra.features_used }} encoded features, on standardised inputs so the
+                sizes are comparable.
+            {% endif %}
+        </p>
+    </div>
+    <div class="card-body">
+        <div class="figure-frame figure-fit">
+            <a href="{{ model_url }}" target="_blank" title="Open the full-size image">
+                <img src="{{ model_url }}"
+                     alt="{% if model_class == 'tree' %}The fitted decision tree{% else %}Non-zero logistic coefficients by species{% endif %}">
+            </a>
+        </div>
+        <p class="text-body-secondary small mt-2 mb-0">Click the figure to open it full size.</p>
+
+        {% if coefficients %}
+            <div class="table-responsive mt-3">
+                <table class="table table-sm table-hover table-nowrap align-middle mb-0">
+                    <thead>
+                        <tr><th>Species</th><th>Feature</th><th>Coefficient</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in coefficients %}
+                            <tr>
+                                <td class="fw-medium">
+                                    <span class="swatch" style="background: {{ row.colour }};"></span>
+                                    {{ row.species }}
+                                </td>
+                                <td>{{ row.feature }}</td>
+                                <td class="text-body-secondary">{{ row.weight|floatformat:3 }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">What &lambda; is choosing between</h2>
+        <p class="text-body-secondary small mb-0">Every model in the family, and the objective at
+        the current &lambda;. The highlighted row is the winner; ties go to the simpler model.</p>
+    </div>
+    <div class="card-body">
+        <div class="figure-frame">
+            <img src="{{ trade_off_url }}"
+                 alt="Test accuracy and the penalised objective against model complexity">
+        </div>
+
+        <div class="table-responsive mt-3">
+            <table class="table table-sm table-hover table-nowrap align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ setting_label }}</th>
+                        <th>&Omega;</th>
+                        <th>Train acc.</th>
+                        <th>Test acc.</th>
+                        <th>Objective</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in trade_off %}
+                        <tr {% if row.selected %}class="table-active"{% endif %}>
+                            <td class="fw-medium">{{ row.setting }}</td>
+                            <td class="text-body-secondary">{{ row.omega }}</td>
+                            <td class="text-body-secondary">{{ row.accuracy_train|floatformat:3 }}</td>
+                            <td class="text-body-secondary">{{ row.accuracy_test|floatformat:3 }}</td>
+                            <td class="text-body-secondary">{{ row.objective|floatformat:4 }}</td>
+                            <td>{% if row.selected %}<span class="badge text-bg-dark">selected</span>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if jump_points %}
+            <p class="text-body-secondary small mt-3 mb-1">The slider only changes its
+            mind at these values &mdash; jump straight to one:</p>
+            <div class="d-flex flex-wrap gap-2">
+                {% for point in jump_points %}
+                    <a class="btn btn-sm {% if point.current %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                       href="?{{ point.query }}">
+                        &lambda; = {{ point.lam|floatformat:4 }}
+                        <span class="opacity-75">&middot; {{ setting_label }} {{ point.setting }}
+                        &middot; &Omega; {{ point.omega }}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Where it goes wrong</h2>
+        <p class="text-body-secondary small mb-0">Rows are the true species, columns the
+        predicted one, on the held-out test set.</p>
+    </div>
+    <div class="card-body">
+        <div class="figure-frame">
+            <img src="{{ confusion_url }}" alt="Confusion matrix for the selected model">
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4" id="counterfactuals">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Counterfactuals</h2>
+        <p class="text-body-secondary small mb-0">Pick a penguin and a species you would rather
+        the model said. These are the smallest changes that would get it there, according to the
+        model selected above.</p>
+    </div>
+
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-lg-5">
+                <label class="form-label" for="cf_index">Penguin</label>
+                <select class="form-select" name="cf_index" id="cf_index">
+                    {% for example in examples %}
+                        <option value="{{ example.index }}" {% if example.index == cf_index %}selected{% endif %}>{{ example.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-sm-6 col-lg-3">
+                <label class="form-label" for="cf_target">Target species</label>
+                <select class="form-select" name="cf_target" id="cf_target">
+                    {% for name in classes %}
+                        <option value="{{ name }}" {% if name == cf_target %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-sm-3 col-lg-2">
+                <label class="form-label" for="cf_k">How many</label>
+                <input type="number" class="form-control" name="cf_k" id="cf_k"
+                       value="{{ cf_k }}" min="1" max="10">
+            </div>
+
+            <div class="col-sm-3 col-lg-2">
+                <button type="submit" class="btn btn-primary w-100">Find</button>
+            </div>
+        </div>
+
+        {% if example_values %}
+            <p class="text-body-secondary small mt-3 mb-0">This penguin is predicted as
+            <strong>{{ predicted_species }}</strong>:
+            {% for item in example_values %}{{ item.label }} {{ item.value }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+        {% endif %}
+
+        {% if counterfactual_error %}
+            <div class="alert alert-warning mt-3 mb-0" role="alert">{{ counterfactual_error }}</div>
+        {% endif %}
+
+        {% if counterfactuals %}
+            <div class="table-responsive mt-3">
+                <table class="table table-sm align-middle table-fixed-note mb-0">
+                    <thead>
+                        <tr>
+                            <th>Distance</th>
+                            <th>Confidence</th>
+                            <th>What would have to change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in counterfactuals %}
+                            <tr>
+                                <td class="fw-medium">{{ row.distance|floatformat:2 }}</td>
+                                <td class="text-body-secondary">{{ row.confidence|floatformat:2 }}</td>
+                                <td class="note-cell">
+                                    {% for change in row.changes %}
+                                        <span class="badge text-bg-light me-1 mb-1">{{ change.label }}:
+                                        {{ change.before }} &rarr; {{ change.after }}</span>
+                                    {% empty %}
+                                        nothing
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="text-body-secondary small mt-3 mb-0">Distance is MAD-weighted
+            L<sup>1</sup>: 1.0 is one typical deviation of one measurement, or one changed label.
+            {% if counterfactuals|length < cf_k %}
+                Only {{ counterfactuals|length }} of the {{ cf_k }} requested were reachable by
+                the sampling, so that is all there is to show.
+            {% endif %}
+            {% if counterfactual_search.widened %}
+                No counterfactual turned up at the first sampling width, so the search was
+                widened before these were found.
+            {% endif %}</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4" id="effects">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Feature effect plots</h2>
+        <p class="text-body-secondary small mb-0">Both curves are computed from scratch here, and
+        both use the model selected above. Three curves each, one per species.</p>
+    </div>
+
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-sm-6 col-lg-4">
+                <label class="form-label" for="feature">Feature</label>
+                <select class="form-select" name="feature" id="feature"
+                        onchange="document.getElementById('controls').submit()">
+                    {% for key, label in features %}
+                        <option value="{{ key }}" {% if key == feature %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <button type="submit" class="btn btn-primary w-100">Show</button>
+            </div>
+        </div>
+
+        <h3 class="section-heading">Partial dependence</h3>
+        <p class="text-body-secondary small">Every penguin is copied with {{ feature_label }} set
+        to each grid value, and the predicted probabilities are averaged. That average runs over
+        combinations of features that may never occur, which is what makes a PDP easy to read and
+        also what makes it mislead when features are correlated.</p>
+        <div class="figure-frame">
+            <img src="{{ pdp_url }}"
+                 alt="Partial dependence of each species on {{ feature_label }}">
+        </div>
+
+        <h3 class="section-heading">Accumulated local effects</h3>
+        <p class="text-body-secondary small">ALE never invents a row: inside each bin only the
+        penguins that really fall there are used. Computed by
+        <strong>{{ ale_method }}</strong>.
+        {% if exact %}
+            Logistic regression is a softmax of a linear function, so &part;p/&part;x is
+            available in closed form.
+        {% else %}
+            A tree is piecewise constant, so its derivative is zero inside every leaf and
+            undefined at the splits; a finite difference across each bin is the only thing that
+            carries information.
+        {% endif %}
+        The strip along the bottom marks the bins that contain data.</p>
+        <div class="figure-frame">
+            <img src="{{ ale_url }}"
+                 alt="Accumulated local effects of {{ feature_label }} on each species">
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">The data</h2>
+        <p class="text-body-secondary small mb-0">{{ rows }} penguins kept of {{ total_rows }};
+        {{ dropped_rows }} rows missing a measurement or a sex were dropped rather than
+        imputed.</p>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover table-nowrap align-middle mb-0">
+                <thead>
+                    <tr><th>Column</th><th>Role</th><th>Kind</th><th>Distinct</th>
+                    <th>Min</th><th>Max</th><th>Values</th></tr>
+                </thead>
+                <tbody>
+                    {% for column in summary %}
+                        <tr {% if column.role == "target" %}class="table-active"{% endif %}>
+                            <td class="fw-medium">{{ column.label }}</td>
+                            <td>{{ column.role }}</td>
+                            <td class="text-body-secondary">{{ column.kind }}</td>
+                            <td class="text-body-secondary">{{ column.distinct }}</td>
+                            <td class="text-body-secondary">{{ column.minimum }}</td>
+                            <td class="text-body-secondary">{{ column.maximum }}</td>
+                            <td class="text-body-secondary">{{ column.values }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</form>
+
+<div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="{% url 'project2:report' %}?{{ report_query }}">Download the report (PDF)</a>
+    <a class="btn btn-outline-secondary" href="{% url 'home:index' %}">Back to hub</a>
+</div>
+
+{% endblock %}

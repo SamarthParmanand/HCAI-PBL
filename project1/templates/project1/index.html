@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 1 &middot; Load a dataset{% endblock %}
+{% block nav_project1 %}active{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+
+        <div class="mb-4">
+            <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 1</p>
+            <h1 class="h3 fw-semibold mb-2">Supervised learning interface</h1>
+            <p class="text-body-secondary mb-0">Upload a dataset to visualize it and train a
+            model on it.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="h6 mb-1">Load a dataset</h2>
+                <p class="text-body-secondary small mb-0">The first row is read as feature names
+                and the last column as the target. Row-id columns are filtered out
+                automatically.</p>
+            </div>
+
+            <div class="card-body">
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">{{ error }}</div>
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" id="upload-form">
+                    {% csrf_token %}
+                    <label class="form-label" for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+                    {{ form.file }}
+                </form>
+
+                {% comment %}
+                A separate form, so the required file input cannot block it. The buttons
+                are bound with the HTML5 form attribute so they still sit in one row.
+                {% endcomment %}
+                {% if sample_available %}
+                    <form method="post" id="sample-form">{% csrf_token %}</form>
+                {% endif %}
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" form="upload-form" class="btn btn-primary">Upload CSV</button>
+                    {% if sample_available %}
+                        <button type="submit" form="sample-form" name="use_sample" value="1"
+                                class="btn btn-outline-secondary">Use Iris sample</button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card-footer bg-body">
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'home:index' %}">Back to hub</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

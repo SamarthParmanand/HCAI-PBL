@@ -1,0 +1,332 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 1 &middot; {{ filename }}{% endblock %}
+{% block nav_project1 %}active{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+    <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 1 &middot; Dataset</p>
+    <h1 class="h3 fw-semibold mb-2">{{ filename }}</h1>
+    <div class="d-flex flex-wrap gap-2">
+        <span class="badge text-bg-dark">{{ dataset.problem_type|capfirst }}</span>
+        <span class="badge text-bg-light">Target: {{ dataset.target_name }}{% if dataset.target_was_chosen %} (your choice){% endif %}</span>
+        {% if dataset.was_overridden %}
+            <span class="badge text-bg-light">Set by you &middot; detected {{ dataset.detected_problem_type }}</span>
+        {% else %}
+            <span class="badge text-bg-light">Detected automatically</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Rows</p>
+            <p class="stat-value">{{ dataset.n_rows }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Features</p>
+            <p class="stat-value">{{ dataset.feature_names|length }}</p>
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            {% if dataset.is_classification %}
+                <p class="stat-label">Classes</p>
+                <p class="stat-value">{{ dataset.class_names|length }}</p>
+            {% else %}
+                <p class="stat-label">Target range</p>
+                <p class="stat-value">{{ dataset.target_range }}</p>
+            {% endif %}
+        </div></div>
+    </div>
+    <div class="col">
+        <div class="card h-100"><div class="card-body">
+            <p class="stat-label">Missing values</p>
+            <p class="stat-value">{{ dataset.n_missing }}</p>
+        </div></div>
+    </div>
+</div>
+
+{% if dataset.rejected_problem_type or dataset.dropped_columns or folded_classes or dataset.too_many_classes %}
+    <div class="mb-4">
+        {% if dataset.rejected_problem_type %}
+            <div class="alert alert-danger" role="alert">
+                Cannot treat this as {{ dataset.rejected_problem_type }}: the target
+                <strong>{{ dataset.target_name }}</strong> is not numeric. Showing it as
+                {{ dataset.problem_type }} instead.
+            </div>
+        {% endif %}
+        {% if dataset.dropped_columns %}
+            <div class="alert alert-secondary" role="alert">
+                Filtered out as row identifier(s):
+                <strong>{{ dataset.dropped_columns|join:", " }}</strong>. Tick
+                &ldquo;keep id-like columns&rdquo; below to use them as features.
+            </div>
+        {% endif %}
+        {% if folded_classes %}
+            <div class="alert alert-secondary" role="alert">
+                Only the {{ max_series }} largest classes get their own colour &mdash;
+                {{ folded_classes|length }} smaller class(es) share one:
+                <strong>{{ folded_classes|join:", " }}</strong>. They are listed separately
+                in the table below.
+            </div>
+        {% endif %}
+        {% if dataset.too_many_classes %}
+            <div class="alert alert-secondary" role="alert">
+                This target has many distinct values for a classification problem &mdash;
+                regression may be the better reading.
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Visualization</h2>
+        <p class="text-body-secondary small mb-0">Pick the two features to plot against each
+        other. Points are coloured by the target.</p>
+    </div>
+
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% comment %}
+            Marks a POST as coming from this control panel, so an unchecked
+            checkbox reads as "off" rather than "absent".
+            {% endcomment %}
+            <input type="hidden" name="controls" value="1">
+
+            <div class="row g-3 align-items-end">
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="chart">Chart</label>
+                    <select class="form-select" name="chart" id="chart">
+                        {% for key, name in chart_types %}
+                            {% if key != "correlation" or correlation_available %}
+                                <option value="{{ key }}" {% if key == chart %}selected{% endif %}>{{ name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="x">{% if chart == "distribution" %}Feature{% else %}Horizontal axis{% endif %}</label>
+                    <select class="form-select" name="x" id="x">
+                        {% for name in axis_choices %}
+                            <option value="{{ name }}" {% if name == x_name %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="y">Vertical axis</label>
+                    <select class="form-select" name="y" id="y" {% if chart != "scatter" %}disabled{% endif %}>
+                        {% for name in axis_choices %}
+                            <option value="{{ name }}" {% if name == y_name %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="target">Target column</label>
+                    <select class="form-select" name="target" id="target">
+                        {% for name in column_names %}
+                            <option value="{{ name }}" {% if name == dataset.target_name %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="problem_type">Problem type</label>
+                    <select class="form-select" name="problem_type" id="problem_type">
+                        <option value="classification" {% if dataset.problem_type == "classification" %}selected{% endif %}>Classification</option>
+                        <option value="regression"
+                                {% if dataset.problem_type == "regression" %}selected{% endif %}
+                                {% if not dataset.can_regress %}disabled{% endif %}>Regression{% if not dataset.can_regress %} &mdash; needs a numeric target{% endif %}</option>
+                    </select>
+                </div>
+
+                <div class="col-sm-6 col-lg-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="keep_ids"
+                               id="keep_ids" {% if keep_ids %}checked{% endif %}>
+                        <label class="form-check-label" for="keep_ids">Keep id-like columns</label>
+                    </div>
+                </div>
+            </div>
+
+            {% if same_axes %}
+                <p class="text-body-secondary small mt-3 mb-0">Both axes show
+                <strong>{{ x_name }}</strong>, so the chart can only restate that column
+                against itself. Pick a different column for one axis, or switch to the
+                Distribution chart.</p>
+            {% endif %}
+
+            {% if not dataset.can_regress %}
+                <p class="text-body-secondary small mt-3 mb-0">&ldquo;{{ dataset.target_name }}&rdquo;
+                holds {% if dataset.is_classification %}labels{% else %}non-numeric values{% endif %},
+                so this can only be a classification problem. Pick a numeric target column to
+                model a quantity instead.</p>
+            {% endif %}
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">Update plot</button>
+                {% if chart == "scatter" %}
+                    <button type="submit" name="swap" value="1"
+                            class="btn btn-outline-secondary">Swap axes</button>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if image_url %}
+            <div class="figure-frame mt-4">
+                <img src="{{ image_url }}"
+                     alt="{{ chart }} chart of the uploaded dataset, coloured by {{ dataset.target_name }}">
+            </div>
+            <p class="text-body-secondary small mt-2 mb-0">
+                {% if chart == "correlation" %}
+                    Every numeric column, each cell computed from the rows where
+                    both of its columns are present.
+                {% elif rows_skipped %}
+                    Showing {{ rows_plotted }} of {{ dataset.n_rows }} rows &mdash;
+                    {{ rows_skipped }} skipped because a plotted column is empty there.
+                {% else %}
+                    All {{ dataset.n_rows }} rows are shown.
+                {% endif %}
+                <a href="{{ image_url }}" download>Download this chart</a>
+            </p>
+        {% else %}
+            <div class="alert alert-danger mt-4" role="alert">{{ plot_error }}</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if audit %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h6 mb-1">Before you train</h2>
+            <p class="text-body-secondary small mb-0">Things about this data that will affect a
+            model, found automatically.</p>
+        </div>
+        <ul class="list-group list-group-flush">
+            {% for finding in audit %}
+                <li class="list-group-item">
+                    <span class="d-block fw-semibold small">{{ finding.title }}</span>
+                    <span class="text-body-secondary">{{ finding.detail }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">How this was read</h2>
+        <p class="text-body-secondary small mb-0">Every automatic decision, and the reason
+        behind it.</p>
+    </div>
+    <ul class="list-group list-group-flush">
+        {% for reason in explanations %}
+            <li class="list-group-item text-body-secondary">{{ reason }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">Columns</h2>
+        <p class="text-body-secondary small mb-0">How each column was read.</p>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover table-nowrap align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Column</th><th>Role</th><th>Type</th>
+                        <th>Distinct</th><th>Missing</th><th>Min</th><th>Max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for column in summary %}
+                        <tr {% if column.role == "target" %}class="table-active"{% endif %}>
+                            <td class="fw-medium">{{ column.name }}</td>
+                            <td>{{ column.role }}</td>
+                            <td class="text-body-secondary">{{ column.dtype }}</td>
+                            <td class="text-body-secondary">{{ column.distinct }}</td>
+                            <td class="text-body-secondary">{{ column.missing }}</td>
+                            <td class="text-body-secondary">{{ column.minimum }}</td>
+                            <td class="text-body-secondary">{{ column.maximum }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if dataset.is_classification %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h6 mb-1">Classes</h2>
+            <p class="text-body-secondary small mb-0">Class sizes, and which ones carry their own
+            colour in the plot.</p>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover table-nowrap align-middle mb-0">
+                    <thead>
+                        <tr><th>Class</th><th>Rows</th><th>Shown as</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in class_table %}
+                            <tr>
+                                <td class="fw-medium">{{ row.name }}</td>
+                                <td class="text-body-secondary">{{ row.count }}</td>
+                                <td>
+                                    <span class="swatch" style="background: {{ row.colour }};"></span>
+                                    {{ row.shown_as }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h6 mb-1">First rows</h2>
+        <p class="text-body-secondary small mb-0">{{ preview_columns|length }} column(s) &mdash;
+        scroll sideways to see them all.</p>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover table-nowrap align-middle mb-0">
+                <thead>
+                    <tr>{% for name in preview_columns %}<th>{{ name }}</th>{% endfor %}</tr>
+                </thead>
+                <tbody>
+                    {% for row in preview_rows %}
+                        <tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-body-secondary small mt-2 mb-0">Showing {{ preview_rows|length }} of
+        {{ dataset.n_rows }} rows.</p>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="{% url 'project1:train' %}">Train a model</a>
+    <a class="btn btn-outline-secondary" href="{% url 'project1:index' %}">Load another dataset</a>
+    <a class="btn btn-outline-secondary" href="{{ download_url }}">Download parsed CSV</a>
+    <a class="btn btn-outline-secondary" href="{% url 'home:index' %}">Back to hub</a>
+</div>
+
+{% endblock %}

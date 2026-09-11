@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Project 3 &middot; not built yet{% endblock %}
+{% block nav_project3 %}active{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <p class="text-uppercase text-body-secondary small fw-semibold mb-1">Project 3</p>
+        <h1 class="h3 fw-semibold mb-3">Active learning for learning-to-defer</h1>
+
+        <div class="alert alert-warning" role="alert">
+            {% if message %}{{ message }}{% else %}
+            The experiment has not been run yet.
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <p>Fitting on all 120,000 AG News articles takes roughly two minutes,
+                which is too long for a page load, so it is run once and cached.
+                Run this from the project root:</p>
+                <pre class="bg-body-tertiary border rounded p-3 mb-3"><code>{{ command }}</code></pre>
+                <p class="text-body-secondary small mb-0">
+                    AG News itself is
+                    {% if data_cached %}already downloaded.{% else %}downloaded
+                    automatically on the first run (19 MB).{% endif %}
+                    Add <code>--limit 8000</code> for a fast, lower-accuracy run.
+                </p>
+            </div>
+        </div>
+
+        <a class="btn btn-outline-secondary mt-3" href="{% url 'home:index' %}">Back to hub</a>
+    </div>
+</div>
+
+{% endblock %}
